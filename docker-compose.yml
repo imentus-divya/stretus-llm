@@ -1,0 +1,41 @@
+services:
+
+  ollama:
+    image: ollama/ollama
+    container_name: ollama
+    volumes:
+      - ollama_data:/root/.ollama
+    ports:
+      - "11434:11434"
+    healthcheck:
+      test: ["CMD", "ollama", "list"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  model-pull:
+    image: ollama/ollama
+    container_name: model-pull
+    depends_on:
+      ollama:
+        condition: service_healthy
+    volumes:
+      - ollama_data:/root/.ollama
+    environment:
+      - OLLAMA_HOST=http://ollama:11434
+    entrypoint: ["ollama", "pull", "llama3.2:1b"]
+    restart: "no"
+
+  api:
+    build: .
+    container_name: stretus-llm-api
+    ports:
+      - "8080:8000"
+    environment:
+      - OLLAMA_HOST=http://ollama:11434
+    depends_on:
+      model-pull:
+        condition: service_completed_successfully
+
+volumes:
+  ollama_data:
